@@ -1,0 +1,82 @@
+# This is a sample build configuration for PHP.
+# Check our guides at https://confluence.atlassian.com/x/e8YWN for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+options:
+  max-time: 30
+
+pipelines:
+  branches:
+    master:
+      - step:
+          name: Login to aws ecr
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            # define aws cli environment variables
+            - export AWS_ACCESS_KEY_ID=$PRODUCTION_AWS_ACCESS_KEY_ID
+            - export AWS_SECRET_ACCESS_KEY=$PRODUCTION_AWS_SECRET_ACCESS_KEY
+            - export AWS_DEFAULT_REGION=$PRODUCTION_AWS_DEFAULT_REGION
+            # aws login
+            - aws ecr get-login-password | docker login --username AWS --password-stdin $PRODUCTION_REGISTRY_URL
+            - cp /root/.docker/config.json .
+          artifacts:
+            - config.json
+      - step:
+          name: Build & Push nginx proxy image
+          services:
+            - docker
+          script:
+            - mkdir /root/.docker && mv config.json /root/.docker/
+            - docker build -t $PRODUCTION_REGISTRY_URL/nginx-proxy:latest .
+            - docker push $PRODUCTION_REGISTRY_URL/nginx-proxy:latest
+    staging:
+      - step:
+          name: Login to aws ecr
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            # define aws cli environment variables
+            - export AWS_ACCESS_KEY_ID=$STAGING_AWS_ACCESS_KEY_ID
+            - export AWS_SECRET_ACCESS_KEY=$STAGING_AWS_SECRET_ACCESS_KEY
+            - export AWS_DEFAULT_REGION=$STAGING_AWS_DEFAULT_REGION
+            # aws login
+            - aws ecr get-login-password | docker login --username AWS --password-stdin $STAGING_REGISTRY_URL
+            - cp /root/.docker/config.json .
+          artifacts:
+            - config.json
+      - step:
+          name: Build & Push nginx proxy image
+          services:
+            - docker
+          script:
+            - mkdir /root/.docker && mv config.json /root/.docker/
+            - docker build -t $STAGING_REGISTRY_URL/nginx-proxy:latest .
+            - docker push $STAGING_REGISTRY_URL/nginx-proxy:latest
+    spot-stamp:
+      - step:
+          name: Login to aws ecr
+          image: amazon/aws-cli
+          services:
+            - docker
+          script:
+            # define aws cli environment variables
+            - export AWS_ACCESS_KEY_ID=$SPOT_STAMP_AWS_ACCESS_KEY_ID
+            - export AWS_SECRET_ACCESS_KEY=$SPOT_STAMP_AWS_SECRET_ACCESS_KEY
+            - export AWS_DEFAULT_REGION=$SPOT_STAMP_AWS_DEFAULT_REGION
+            # aws login
+            - aws ecr get-login-password | docker login --username AWS --password-stdin $SPOT_STAMP_REGISTRY_URL
+            - cp /root/.docker/config.json .
+          artifacts:
+            - config.json
+      - step:
+          name: Build & Push nginx proxy image
+          services:
+            - docker
+          script:
+            - mkdir /root/.docker && mv config.json /root/.docker/
+            - docker build -t $SPOT_STAMP_REGISTRY_URL/nginx-proxy:latest .
+            - docker push $SPOT_STAMP_REGISTRY_URL/nginx-proxy:latest
